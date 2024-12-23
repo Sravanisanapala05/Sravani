@@ -1,0 +1,118 @@
+import matplotlib.pyplot as plt
+import numpy as np
+from queue import Queue
+import random
+from PIL import Image
+
+# Set grid size
+grid_size = int(input("Enter the size of the grid (n): "))  # User input for grid size
+grid = np.zeros((grid_size, grid_size))
+
+# Define grid elements
+MONKEY = 1
+TABLE_RED = 2
+TABLE_BLUE = 3
+BANANA_GREEN = 4
+BANANA_YELLOW = 5
+
+# Load images for grid elements
+monkey_image = Image.open('monkey.png')
+table_red_image = Image.open('table_red.png')
+table_blue_image = Image.open('table_blue.png')
+banana_green_image = Image.open('banana_green.png')
+banana_yellow_image = Image.open('banana_yellow.png')
+
+# Initialize monkey, table, and bananas randomly
+original_monkey_pos = (0, 0)
+monkey_pos = original_monkey_pos
+
+# Place the red table randomly
+table_pos = (random.randint(0, grid_size - 1), random.randint(0, grid_size - 1))
+while table_pos == monkey_pos:
+    table_pos = (random.randint(0, grid_size - 1), random.randint(0, grid_size - 1))
+grid[table_pos] = TABLE_RED
+
+# Place 3 green bananas randomly
+banana_positions = []
+while len(banana_positions) < 3:
+    pos = (random.randint(0, grid_size - 1), random.randint(0, grid_size - 1))
+    if pos != monkey_pos and pos != table_pos and pos not in banana_positions:
+        banana_positions.append(pos)
+        grid[pos] = BANANA_GREEN
+
+def draw_grid(grid, monkey_pos):
+    """Draw the grid using matplotlib with images."""
+    fig, ax = plt.subplots(figsize=(6, 6))
+    ax.set_xlim(0, grid_size)
+    ax.set_ylim(0, grid_size)
+    ax.set_xticks(range(grid_size))
+    ax.set_yticks(range(grid_size))
+    ax.grid(True)
+    ax.set_aspect('equal')
+
+    # Draw elements
+    for x in range(grid_size):
+        for y in range(grid_size):
+            if grid[x, y] == TABLE_RED:
+                ax.imshow(table_red_image, extent=(y, y + 1, x, x + 1))
+            elif grid[x, y] == TABLE_BLUE:
+                ax.imshow(table_blue_image, extent=(y, y + 1, x, x + 1))
+            elif grid[x, y] == BANANA_GREEN:
+                ax.imshow(banana_green_image, extent=(y, y + 1, x, x + 1))
+            elif grid[x, y] == BANANA_YELLOW:
+                ax.imshow(banana_yellow_image, extent=(y, y + 1, x, x + 1))
+
+    # Draw monkey
+    ax.imshow(monkey_image, extent=(monkey_pos[1], monkey_pos[1] + 1, monkey_pos[0], monkey_pos[0] + 1))
+    plt.show()
+
+def bfs_path(grid, start, target):
+    """Find the shortest path from start to target using BFS."""
+    directions = [(0, 1), (1, 0), (0, -1), (-1, 0), (1, 1), (-1, -1), (1, -1), (-1, 1)]
+    queue = Queue()
+    queue.put((start, [start]))
+    visited = set()
+    visited.add(start)
+
+    while not queue.empty():
+        current, path = queue.get()
+        if current == target:
+            return path
+
+        for d in directions:
+            neighbor = (current[0] + d[0], current[1] + d[1])
+            if (0 <= neighbor[0] < grid_size and 0 <= neighbor[1] < grid_size
+                    and neighbor not in visited):
+                queue.put((neighbor, path + [neighbor]))
+                visited.add(neighbor)
+    return []
+
+# Move the monkey to the red table
+path_to_table = bfs_path(grid, monkey_pos, table_pos)
+for step in path_to_table:
+    monkey_pos = step
+    draw_grid(grid, monkey_pos)
+
+# Turn the table blue
+grid[table_pos] = TABLE_BLUE
+
+def find_and_collect_bananas(monkey_pos, banana_positions):
+    """Find all bananas and collect them optimally."""
+    for banana_pos in banana_positions:
+        path = bfs_path(grid, monkey_pos, banana_pos)
+        for step in path:
+            monkey_pos = step
+            draw_grid(grid, monkey_pos)
+        grid[banana_pos] = BANANA_YELLOW
+        draw_grid(grid, monkey_pos)  # Update grid after collecting each banana
+    return monkey_pos
+
+# Collect all bananas
+monkey_pos = find_and_collect_bananas(monkey_pos, banana_positions)
+draw_grid(grid, monkey_pos)
+
+# Return to the original position
+path_to_original = bfs_path(grid, monkey_pos, original_monkey_pos)
+for step in path_to_original:
+    monkey_pos = step
+    draw_grid(grid, monkey_pos)
